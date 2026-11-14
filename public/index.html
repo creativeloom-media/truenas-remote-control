@@ -132,13 +132,13 @@ function render(){
   const b=$('pwr');
   const transient=['shutting-down','starting','restarting'].includes(s.state);
   b.className='pwr '+(transient?'busy':s.state);
-  b.disabled=transient||busy;
+  b.disabled=transient||busy||(s.state==='offline'&&!s.wolConfigured);
   $('restart').disabled=s.state!=='online'||busy;
   $('state').textContent=LABEL[s.state];
   let sub=s.host;
   if(s.info&&s.info.uptimeSeconds!=null)sub=`${s.info.hostname||s.host} · TrueNAS ${s.info.version||''} · up ${fmtUp(s.info.uptimeSeconds)}`;
   else if(s.info&&s.info.error)sub=s.host+' · API: '+s.info.error;
-  else if(s.state==='offline'&&!s.wolConfigured)sub='Wake-on-LAN not configured (set NAS_MAC)';
+  else if(s.state==='offline'&&!s.wolConfigured)sub=s.host+' · Power on needs Wake-on-LAN (not set up)';
   $('sub').textContent=sub;
 }
 async function refresh(){
