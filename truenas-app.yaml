@@ -1,0 +1,23 @@
+# Paste into TrueNAS: Apps > Discover Apps > Custom App > Install via YAML
+services:
+  nas-remote:
+    image: node:22-alpine
+    restart: unless-stopped
+    ports:
+      - "9080:9080"
+    environment:
+      NAS_HOST: 192.168.1.12
+      NAS_API_KEY: PASTE_NEW_API_KEY
+      APP_PIN: PICK_A_PIN
+      PORT: "9080"
+      DATA_DIR: /data
+    volumes:
+      - nas-remote-data:/data
+    command: >
+      sh -c "apk add --no-cache git &&
+      rm -rf /app &&
+      git clone --depth 1 -b claude/nas-mobile-app-control-2nfd77
+      https://github.com/creativeloom-media/truenas-remote-control /app &&
+      cd /app && npm ci --omit=dev && node server.js"
+volumes:
+  nas-remote-data: {}
