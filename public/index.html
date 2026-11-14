@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NAS Control</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NAS">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{--bg:#0e1116;--card:#171b22;--line:#262c36;--text:#e8ecf2;--mute:#8b95a5;--on:#2ecc71;--off:#6b7482;--warn:#f5a524;--bad:#ef5350;--acc:#4da3ff}
+@media (prefers-color-scheme:light){:root:not([data-t]){--bg:#f3f5f8;--card:#fff;--line:#dfe3ea;--text:#141820;--mute:#667085;--off:#98a1b0}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));min-height:100vh}
+main{max-width:480px;margin:0 auto;display:grid;gap:14px}
+h1{font-size:15px;font-weight:600;color:var(--mute);margin:4px 2px 0;letter-spacing:.04em;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+.hero{display:grid;place-items:center;gap:14px;padding:26px 18px}
+.pwr{width:132px;height:132px;border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;background:var(--card);color:var(--off);box-shadow:inset 0 0 0 4px var(--off);transition:.25s}
+.pwr svg{width:54px;height:54px}
+.pwr.online{color:var(--on);box-shadow:inset 0 0 0 4px var(--on),0 0 28px color-mix(in srgb,var(--on) 35%,transparent)}
+.pwr.busy{color:var(--warn);box-shadow:inset 0 0 0 4px var(--warn);animation:pulse 1.2s infinite}
+.pwr:disabled{opacity:.6}
+@keyframes pulse{50%{opacity:.55}}
+.state{font-size:22px;font-weight:650}
+.sub{color:var(--mute);font-size:14px;text-align:center;min-height:20px}
+.row{display:flex;gap:10px}
+button.b{flex:1;padding:13px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+button.b.pri{background:var(--acc);border-color:var(--acc);color:#06121f}
+button.b.dan{color:var(--bad)}
+button.b:disabled{opacity:.45}
+.sch{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.sch:first-of-type{border-top:0}
+.sch .t{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+.sch .d{color:var(--mute);font-size:13px}
+.sch .grow{flex:1}
+.tag{font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}
+.tag.on{background:color-mix(in srgb,var(--on) 20%,transparent);color:var(--on)}
+.tag.off{background:color-mix(in srgb,var(--bad) 20%,transparent);color:var(--bad)}
+.tag.restart{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--warn)}
+.sw{appearance:none;width:46px;height:28px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;transition:.2s;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}
+.sw:checked{background:var(--on)}.sw:checked::after{left:21px}
+.x{background:none;border:0;color:var(--mute);font-size:22px;padding:4px 8px;cursor:pointer}
+label{display:block;font-size:13px;color:var(--mute);margin:12px 0 6px}
+select,input[type=time],input[type=date],input[type=password]{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
+.days{display:flex;gap:6px}
+.days button{flex:1;padding:10px 0;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--mute);font-weight:600;cursor:pointer}
+.days button.sel{background:var(--acc);border-color:var(--acc);color:#06121f}
+.err{color:var(--bad);font-size:14px;margin:8px 0 0;min-height:18px}
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);padding:22px;width:min(92vw,360px)}
+dialog::backdrop{background:#0009}
+.head{display:flex;justify-content:space-between;align-items:center}
+.small{font-size:12px;color:var(--mute);text-align:center}
+</style>
+</head>
+<body>
+<main>
+  <h1>NAS Control</h1>
+
+  <section class="card hero">
+    <button id="pwr" class="pwr" aria-label="Power" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg>
+    </button>
+    <div class="state" id="state">Connecting…</div>
+    <div class="sub" id="sub"></div>
+    <div class="row" style="width:100%">
+      <button class="b" id="restart" disabled>Restart</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="head"><strong>Schedules</strong><button class="b pri" id="add" style="flex:none;padding:8px 16px">+ Add</button></div>
+    <div id="list" style="margin-top:6px"></div>
+    <div class="sub" id="empty" style="padding:14px 0 4px">No schedules yet</div>
+  </section>
+
+  <div class="small" id="foot"></div>
+</main>
+
+<dialog id="pin"><form method="dialog" id="pinf">
+  <strong>Enter PIN</strong>
+  <label>PIN</label><input type="password" id="pinin" inputmode="numeric" autocomplete="current-password" required>
+  <div class="err" id="pinerr"></div>
+  <div class="row" style="margin-top:10px"><button class="b pri">Unlock</button></div>
+</form></dialog>
+
+<dialog id="confirm"><form method="dialog">
+  <strong id="ctitle"></strong>
+  <p class="sub" id="cbody" style="text-align:left"></p>
+  <div class="row"><button class="b" value="no">Cancel</button><button class="b dan" value="yes" id="cyes">Confirm</button></div>
+</form></dialog>
+
+<dialog id="addd"><form id="addf">
+  <strong>New schedule</strong>
+  <label>Action</label>
+  <select id="a-action"><option value="off">Power off</option><option value="on">Power on (Wake-on-LAN)</option><option value="restart">Restart</option></select>
+  <label>Time</label><input type="time" id="a-time" value="23:00" required>
+  <label>Repeat</label>
+  <div class="days" id="a-days"></div>
+  <div id="a-datew"><label>Date (one-time)</label><input type="date" id="a-date"></div>
+  <div class="err" id="a-err"></div>
+  <div class="row" style="margin-top:10px"><button class="b" type="button" id="a-cancel">Cancel</button><button class="b pri">Save</button></div>
+</form></dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+let pin=localStorage.getItem('pin')||'';
+let status=null, busy=false;
+
+async function api(path,opt={}){
+  const r=await fetch('/api/'+path,{...opt,headers:{'x-pin':pin,'content-type':'application/json'},body:opt.body?JSON.stringify(opt.body):undefined});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401){askPin(j.error);throw new Error('auth')}
+  if(!r.ok)throw new Error(j.error||'Request failed');
+  return j;
+}
+function askPin(msg){$('pinerr').textContent=msg||'';if(!$('pin').open)$('pin').showModal()}
+$('pinf').addEventListener('submit',e=>{pin=$('pinin').value;localStorage.setItem('pin',pin);$('pinin').value='';refresh();loadSched()});
+$('pin').addEventListener('cancel',e=>e.preventDefault());
+
+function fmtUp(s){const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return(d?d+'d ':'')+(h?h+'h ':'')+m+'m'}
+const LABEL={online:'Online',offline:'Offline','shutting-down':'Shutting down…',starting:'Starting up…',restarting:'Restarting…'};
+
+function render(){
+  const s=status;if(!s)return;
+  const b=$('pwr');
+  const transient=['shutting-down','starting','restarting'].includes(s.state);
+  b.className='pwr '+(transient?'busy':s.state);
+  b.disabled=transient||busy;
+  $('restart').disabled=s.state!=='online'||busy;
+  $('state').textContent=LABEL[s.state];
+  let sub=s.host;
+  if(s.info&&s.info.uptimeSeconds!=null)sub=`${s.info.hostname||s.host} · TrueNAS ${s.info.version||''} · up ${fmtUp(s.info.uptimeSeconds)}`;
+  else if(s.info&&s.info.error)sub=s.host+' · API: '+s.info.error;
+  else if(s.state==='offline'&&!s.wolConfigured)sub='Wake-on-LAN not configured (set NAS_MAC)';
+  $('sub').textContent=sub;
+}
+async function refresh(){
+  try{status=await api('status');render()}catch(e){if(e.message!=='auth'){$('state').textContent='Relay unreachable';$('sub').textContent='Check the relay is running'}}
+}
+function ask(title,body,label){
+  return new Promise(res=>{$('ctitle').textContent=title;$('cbody').textContent=body;$('cyes').textContent=label;
+    const d=$('confirm');d.returnValue='';d.onclose=()=>res(d.returnValue==='yes');d.showModal()})
+}
+async function power(action){
+  busy=true;render();
+  try{await api('power',{method:'POST',body:{action}})}catch(e){alert(e.message)}
+  busy=false;setTimeout(refresh,800);
+}
+$('pwr').onclick=async()=>{
+  if(!status)return;
+  if(status.state==='offline'){if(await ask('Turn NAS on?','Sends a Wake-on-LAN signal.','Power on'))power('on')}
+  else if(status.state==='online'){if(await ask('Shut down NAS?','This stops all services and powers the NAS off.','Shut down'))power('off')}
+};
+$('restart').onclick=async()=>{if(await ask('Restart NAS?','Services will be unavailable for a few minutes.','Restart'))power('restart')};
+
+/* schedules */
+const DN=['Su','Mo','Tu','We','Th','Fr','Sa'];
+function dayText(s){
+  if(!s.days.length)return 'Once on '+s.date;
+  if(s.days.length===7)return 'Every day';
+  return s.days.map(d=>DN[d]).join(' ');
+}
+async function loadSched(){
+  try{
+    const l=await api('schedules');
+    $('empty').style.display=l.length?'none':'block';
+    $('list').innerHTML='';
+    l.sort((a,b)=>a.time.localeCompare(b.time)).forEach(s=>{
+      const r=document.createElement('div');r.className='sch';
+      r.innerHTML=`<div class="grow"><div class="t">${s.time}</div><div class="d">${dayText(s)}${s.lastResult&&s.lastResult!=='ok'?' · '+s.lastResult:''}</div></div><span class="tag ${s.action}">${s.action==='on'?'On':s.action==='off'?'Off':'Restart'}</span><input class="sw" type="checkbox" ${s.enabled?'checked':''}><button class="x" aria-label="Delete">×</button>`;
+      r.querySelector('.sw').onchange=async e=>{await api('schedules/'+s.id,{method:'PATCH',body:{enabled:e.target.checked}})};
+      r.querySelector('.x').onclick=async()=>{if(await ask('Delete schedule?',`${s.action.toUpperCase()} at ${s.time}`,'Delete')){await api('schedules/'+s.id,{method:'DELETE'});loadSched()}};
+      $('list').appendChild(r);
+    });
+  }catch{}
+}
+let sel=new Set();
+function buildDays(){
+  $('a-days').innerHTML='';
+  [1,2,3,4,5,6,0].forEach(d=>{const b=document.createElement('button');b.type='button';b.textContent=DN[d];b.className=sel.has(d)?'sel':'';
+    b.onclick=()=>{sel.has(d)?sel.delete(d):sel.add(d);buildDays();dateVis()};$('a-days').appendChild(b)});
+}
+function dateVis(){$('a-datew').style.display=sel.size?'none':'block'}
+$('add').onclick=()=>{sel=new Set();buildDays();dateVis();$('a-err').textContent='';
+  $('a-date').value=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);$('addd').showModal()};
+$('a-cancel').onclick=()=>$('addd').close();
+$('addf').onsubmit=async e=>{
+  e.preventDefault();
+  try{await api('schedules',{method:'POST',body:{action:$('a-action').value,time:$('a-time').value,days:[...sel].sort(),date:sel.size?null:$('a-date').value}});$('addd').close();loadSched()}
+  catch(err){$('a-err').textContent=err.message}
+};
+
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+if(!pin)askPin();else{refresh();loadSched()}
+setInterval(()=>{if(!document.hidden&&pin)refresh()},4000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&pin)refresh()});
+$('foot').textContent='Schedules run on the relay, so it must stay on.';
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+services:
+  nas-remote:
+    build: .
+    restart: unless-stopped
+    # host networking is required so Wake-on-LAN broadcasts reach your LAN
+    network_mode: host
+    env_file: .env
+    volumes:
+      - ./data:/data
